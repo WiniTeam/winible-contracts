@@ -24,10 +24,14 @@ const config: HardhatUserConfig = {
 			accounts: [`${process.env.PRIVATE_KEY}`]
 		},
 		fork: {
-			url: `https://data-seed-prebsc-1-s1.binance.org:8545`,
+			url: `http://127.0.0.1:8545`,
 			accounts: [`${process.env.PRIVATE_KEY}`]
 		},
-
+		hardhat: {
+			forking: {
+				url: `https://mainnet.infura.io/v3/${process.env.INFURA_KEY}`,
+			},
+		},
 	},
 	etherscan: {
 		apiKey: process.env.ETHERSCAN_KEY
