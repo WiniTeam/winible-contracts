@@ -42,7 +42,6 @@ contract Winible is ERC721Enumerable, Ownable {
 
     uint public constant MIN_LEVEL = 1;
     uint public constant MAX_LEVEL = 3;
-    mapping (uint256 => uint256) public perksPrices;
 
     mapping (address => bool) public whitelistedBottles;
 
@@ -128,8 +127,17 @@ contract Winible is ERC721Enumerable, Ownable {
         cellar.increaseCapacity(_cap);
     }
 
-    function buyPerk (uint256 _card, uint256 _perk) payable public {
-        //TODO all logic
+    function buyPerk (uint256 _card, uint256 _perk, bool _inETH) payable public {
+        require(!perks[_card][_perk] && !defaultPerks[levels[_card]][_perk], "Already have this perk");
+
+        uint256 price = perkPrices[_perk];
+        if (_inETH) {
+            price = getPriceInETH(price);
+        }
+        
+        _collectPayement(price, msg.sender, _inETH);
+
+        perks[_card][_perk] = true;
     }
 
     function increaseExpiry(address[] memory _bottles, uint256[] memory _ids, uint256 _duration) public payable {
@@ -163,6 +171,18 @@ contract Winible is ERC721Enumerable, Ownable {
             (_usdcPrice * (10 ** (ethDecimals * 2 - usdcDecimals)))
             / ( oraclePrice * (10 ** (ethDecimals - oracleDecimals)))
         );
+    }
+
+    function hasPerk (uint256 _card, uint256 _perk) public view returns (bool) {
+        return (defaultPerks[levels[_card]][_perk] || perks[_card][_perk]);
+    }
+
+    function createPerk (uint256 _id, uint256 _price, string memory _name, uint256[] memory _defaults ) public onlyOwner {
+        perkNames[_id] = _name;
+        perkPrices[_id] = _price;
+        for (uint i = 0; i < _defaults.length; i++) {
+            defaultPerks[_defaults[i]][_id] = true;
+        }
     }
 
 
