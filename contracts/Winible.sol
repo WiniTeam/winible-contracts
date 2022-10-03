@@ -60,24 +60,24 @@ contract Winible is ERC721Enumerable, Ownable {
 
         uint256 decimals = usdc.decimals();
 
-        //create base perks
-        // Structs.Perk memory cellar3d = Structs.Perk(0, 50, "3D Cellar");
-        // perks[0] = cellar3d;
+        //create levels
+        levelPrices[1] = 20 * (10 ** decimals);
+        levelNames[1] = "Flex";
+        capacityUpdate[1] = 6;
 
-        // //create base levels
-        // Structs.Level memory flex = Structs.Level(1, 40, "Flex", new Structs.Perk[](0));
-        // levels[1] = flex;
+        levelPrices[2] = 200 * (10 ** decimals);
+        levelNames[2] = "Premium";
+        capacityUpdate[2] = 60;
 
+        levelPrices[3] = 1000 * (10 ** decimals);
+        levelNames[3] = "Elite";
+        capacityUpdate[3] = type(uint256).max;
 
-        // levels[2] = Structs.Level(2, 200, "Elite", new Structs.Perk[](0));
-        // levels[3] = Structs.Level(3, 800, "Premium", new Structs.Perk[](0));
-
-
-        // levelsPrices[MIN_LEVEL] = 40 * decimals; //40$
     }
 
     function build (bool _inETH) payable public returns (uint256) {
-        uint256 price = levelPrices[MIN_LEVEL];
+        uint256 minLevel = MIN_LEVEL;
+        uint256 price = levelPrices[minLevel];
         if (_inETH) {
             price = getPriceInETH(price);
         }
@@ -87,8 +87,8 @@ contract Winible is ERC721Enumerable, Ownable {
 
         uint256 cardId = totalSupply();
 
-        Cellar cellar = new Cellar(cardId, 30);
-        levels[cardId] = MIN_LEVEL;
+        Cellar cellar = new Cellar(cardId, capacityUpdate[minLevel]);
+        levels[cardId] = minLevel;
         cellars[cardId] = address(cellar);
 
         _mint(to, cardId);
@@ -155,13 +155,13 @@ contract Winible is ERC721Enumerable, Ownable {
         uint256 price;
         uint256 decimals = usdc.decimals();
         if (_duration == 30 days) {
-            price = 1 * decimals;
+            price = 1 * (10 ** decimals);
         }
         else if (_duration == 182 days) {
-            price = 15 * (decimals - 1);
+            price = 15 * (10 ** (decimals - 1));
         }
         else if (_duration == 365 days) {
-            price = 2 * decimals;
+            price = 2 * (10 ** decimals);
         }
         else {
             price = 0;

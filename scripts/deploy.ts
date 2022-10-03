@@ -1,23 +1,25 @@
+import { BigNumber } from "ethers";
 import { ethers } from "hardhat";
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-  const unlockTime = currentTimestampInSeconds + ONE_YEAR_IN_SECS;
 
-  const lockedAmount = ethers.utils.parseEther("1");
+	const oracle = '0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419';
+	const usdc = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+	const weth = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2';
 
-  const Lock = await ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
 
-  await lock.deployed();
+	const Winible = await ethers.getContractFactory("Winible");
+	const winible = await Winible.deploy(oracle, usdc, weth);
 
-  console.log(`Lock with 1 ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`);
+	await winible.deployed();
+
+	console.log(`Winible deployed to: ${winible.address}`);
+	console.log(`Create perks...`);
+	await winible.createPerk(0, BigNumber.from(10).mul(BigNumber.from(10).pow(BigNumber.from(6))), '3D Cellar', [2, 3]);
+	console.log(`- 3D Cellar... Done`);
 }
 
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
 main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
+	console.error(error);
+	process.exitCode = 1;
 });

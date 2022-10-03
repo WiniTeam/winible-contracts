@@ -1,6 +1,7 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import * as dotenv from 'dotenv';
+import "hardhat-gas-reporter";
 
 dotenv.config()
 
@@ -35,6 +36,11 @@ const config: HardhatUserConfig = {
 	},
 	etherscan: {
 		apiKey: process.env.ETHERSCAN_KEY
+	},
+	gasReporter: {
+		currency: 'USD',
+		gasPrice: 15,
+		enabled: true,
 	}
 };
 
