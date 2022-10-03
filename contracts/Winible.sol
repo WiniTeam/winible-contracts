@@ -140,10 +140,32 @@ contract Winible is ERC721Enumerable, Ownable {
         perks[_card][_perk] = true;
     }
 
-    function increaseExpiry(address[] memory _bottles, uint256[] memory _ids, uint256 _duration) public payable {
-        require(_bottles.length == _ids.length, "Wrong input");
+    function increaseExpiry (address[] memory _bottles, uint256[] memory _ids, uint256 _duration, bool _inETH) public payable {
+        require(_bottles.length == _ids.length, "Wrong input (_bottles or _ids)");
+        
+        uint256 price;
+        uint256 decimals = usdc.decimals();
+        if (_duration == 30 days) {
+            price = 1 * decimals;
+        }
+        else if (_duration == 182 days) {
+            price = 15 * (decimals - 1);
+        }
+        else if (_duration == 365 days) {
+            price = 2 * decimals;
+        }
+        else {
+            price = 0;
+        }
 
-        //TODO collect payment
+        price *= _ids.length;
+
+        require(price > 0, "Wrong input (_duration)");
+
+        if (_inETH) {
+            price = getPriceInETH(price);
+        }
+        _collectPayement(price, msg.sender, _inETH);
 
         for (uint256 i = 0; i < _bottles.length; i++) {
             Bottle(_bottles[i]).increaseExpiry(_ids[i], _duration);
