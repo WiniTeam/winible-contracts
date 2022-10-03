@@ -33,6 +33,8 @@ contract Winible is ERC721Enumerable, Ownable {
     mapping (uint256 => string) public levelNames;
     // levelId (perkId) => hasPerk
     mapping (uint256 => mapping (uint256 => bool)) public defaultPerks;
+    // levelId => cellar capacity to add
+    mapping (uint256 => uint256) public capacityUpdate;
 
     //Perks
     // perkId => perk price
@@ -81,7 +83,7 @@ contract Winible is ERC721Enumerable, Ownable {
         }
         
         address to = msg.sender;
-        _collectPayement(price, to, _inETH);
+        _collectPayment(price, to, _inETH);
 
         uint256 cardId = totalSupply();
 
@@ -94,14 +96,22 @@ contract Winible is ERC721Enumerable, Ownable {
         return cardId;
     }
 
-    function upgrade (uint256 _card, uint _level) payable public {
-        require(ownerOf(_card) == msg.sender, "");
-        // require(_level >= levels[_card] && _level <= MAX_LEVEL, "");
+    function upgrade (uint256 _card, uint _level, bool _inETH) payable public {
+        require(ownerOf(_card) == msg.sender, "Not the owner of _card");
+        require(_level > levels[_card] && _level <= MAX_LEVEL, "Wrong _level");
 
-        //TODO check price and collect
+        //TODO check level availability
+        uint256 price = levelPrices[_level];
+        if (_inETH) {
+            price = getPriceInETH(price);
+        }
+        _collectPayment(price, msg.sender, _inETH);
+        
+        levels[_card] = _level;
 
-        //TODO increase cellar cap,
-        //TODO add perks
+        Cellar cellar = Cellar(cellars[_card]);
+        cellar.increaseCapacity(capacityUpdate[_level]);
+
         
     }
 
@@ -134,8 +144,7 @@ contract Winible is ERC721Enumerable, Ownable {
         if (_inETH) {
             price = getPriceInETH(price);
         }
-        
-        _collectPayement(price, msg.sender, _inETH);
+        _collectPayment(price, msg.sender, _inETH);
 
         perks[_card][_perk] = true;
     }
@@ -165,7 +174,7 @@ contract Winible is ERC721Enumerable, Ownable {
         if (_inETH) {
             price = getPriceInETH(price);
         }
-        _collectPayement(price, msg.sender, _inETH);
+        _collectPayment(price, msg.sender, _inETH);
 
         for (uint256 i = 0; i < _bottles.length; i++) {
             Bottle(_bottles[i]).increaseExpiry(_ids[i], _duration);
@@ -214,7 +223,7 @@ contract Winible is ERC721Enumerable, Ownable {
     }
 
     //internal 
-    function _collectPayement (uint256 _amount, address _payer, bool _inETH) internal {
+    function _collectPayment (uint256 _amount, address _payer, bool _inETH) internal {
         if(_inETH) {
             require(msg.value == _amount, "Not enough");
             _wrapAndTransfer(_amount);

@@ -30,8 +30,8 @@ contract Cellar {
 
     function redeem (address[] memory _bottles, uint256[] memory _ids) public onlyOwner {
         require(_bottles.length == _ids.length, "Wrong input");
-       
         for (uint256 i = 0; i < _bottles.length; i++) {
+            //TODO check if burnable
             Bottle bottle = Bottle(_bottles[i]);
             bottle.burn(_ids[i]);
             aum -= 1;
