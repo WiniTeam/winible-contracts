@@ -84,12 +84,9 @@ contract Cellar {
         aum += 1;
     }
 
-    function increaseCapacity (uint256 _cap) external onlyController {
-        require(_cap < type(uint256).max, "Wrong input");
-        uint256 oldCap = capacity;
-        capacity += _cap;
-        require(oldCap > capacity, "Wrong input");
-
+    function changeCapacity (uint256 _cap) external onlyController {
+        require(_cap > capacity, "Wrong input: _cap");
+        capacity = _cap;
     }
 
 }

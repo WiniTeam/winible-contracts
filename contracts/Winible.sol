@@ -7,6 +7,7 @@ pragma solidity ^0.8.17;
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./Cellar.sol";
 import "./Dionysos.sol";
 import "./Bottle.sol";
@@ -14,6 +15,7 @@ import "./interfaces/IChainLink.sol";
 import "./interfaces/IWETH.sol";
 
 contract Winible is ERC721Enumerable, Ownable {
+    // using ECDSA for bytes32;
 
 
     //Cards 
@@ -53,10 +55,14 @@ contract Winible is ERC721Enumerable, Ownable {
     IERC20Metadata public usdc;
     IWETH public wETH;
 
-    constructor(address _ethusd, address _usdc, address _weth) ERC721 ("Winible Club","Winible"){
+    address public signer;
+
+    constructor(address _ethusd, address _usdc, address _weth, address _signer) ERC721 ("Winible Club","Winible"){
         oracle = IChainLink(_ethusd);
         usdc = IERC20Metadata(_usdc);
         wETH = IWETH(_weth);
+
+        signer = _signer;
 
         uint256 decimals = usdc.decimals();
 
@@ -109,36 +115,29 @@ contract Winible is ERC721Enumerable, Ownable {
         
         levels[_card] = _level;
 
-        Cellar cellar = Cellar(cellars[_card]);
-        cellar.increaseCapacity(capacityUpdate[_level]);
-
-        
+        _addCap(cellars[_card], capacityUpdate[_level]);        
     }
 
     //_data = {cardId}-{timestamp};{chain}-{pfp}-{pfpid};{name} 
     function updateData (uint256 _card, bytes memory _data, bytes memory _signature) payable public {
-        require(msg.sender == ownerOf(_card), "Not the card owner.");
+        require(msg.sender == ownerOf(_card), "Not the _card owner.");
         
         //TODO check free or not -> if not free collect payement
-        //TODO check _data is signed by API -> _signature
+        address recovered = ECDSA.recover(ECDSA.toEthSignedMessageHash(_data), _signature);
+        require(recovered == signer, "Not signed by signer");
 
         data[_card] = _data;
     }
 
     function increase (uint256 _card, uint256 _cap) payable public {
-        Cellar cellar = Cellar(cellars[_card]);
-        
-        if (_cap == type(uint256).max) {
-            _cap = type(uint256).max - cellar.capacity();
-        }
-
         //TODO check price and collect
 
-        cellar.increaseCapacity(_cap);
+        _addCap(cellars[_card], _cap);
+
     }
 
     function buyPerk (uint256 _card, uint256 _perk, bool _inETH) payable public {
-        require(!perks[_card][_perk] && !defaultPerks[levels[_card]][_perk], "Already have this perk");
+        require(!perks[_card][_perk] && !defaultPerks[levels[_card]][_perk], "_card already has this _perk");
 
         uint256 price = perkPrices[_perk];
         if (_inETH) {
@@ -236,6 +235,18 @@ contract Winible is ERC721Enumerable, Ownable {
     function _wrapAndTransfer (uint256 _amount) internal {
         wETH.deposit{value: _amount}();
         require(wETH.transfer(address(dionysos), _amount));
+    }
+
+    function _addCap (address _cellar, uint256 _add) internal {
+        Cellar cellar = Cellar(_cellar);
+        uint256 capacity = cellar.capacity();
+
+        if (_add == type(uint256).max) {
+            cellar.changeCapacity(_add);
+        }
+        else {
+            cellar.changeCapacity(capacity + _add);
+        } 
     }
 
 }
