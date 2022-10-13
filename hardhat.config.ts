@@ -40,7 +40,7 @@ const config: HardhatUserConfig = {
 	gasReporter: {
 		currency: 'USD',
 		gasPrice: 15,
-		enabled: true,
+		enabled: false,
 	}
 };
 
