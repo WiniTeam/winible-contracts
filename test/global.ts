@@ -35,11 +35,11 @@ describe("Winible", function () {
 
 
 
-	describe("Build cellar", function () {
+	describe("Cards", function () {
 		it("Should have a card level 1: pay in eth", async function () {
 			const { winible, deployer, weth } = await loadFixture(deployProtocol);
 			const price = await winible.getPriceInETH(await winible.levelPrices(1));
-			await winible.build(true, {value: price})
+			await winible.build(1, true, {value: price})
 			expect(await winible.ownerOf(0)).to.equal(deployer.address);
 			expect(await winible.levels(0)).to.equal(BigNumber.from(1));
 			expect(await weth.balanceOf(await winible.dionysos())).to.equal(price);
@@ -48,11 +48,34 @@ describe("Winible", function () {
 		it("Should have a card level 1: pay in usdc", async function () {
 			const { winible, deployer, usdc } = await loadFixture(deployProtocol);
 			await usdc.approve(winible.address, BigNumber.from("1000000000").mul(BigNumber.from(10).pow(BigNumber.from(18))))
-			await winible.build(false, {value: 0})
+			await winible.build(1, false, {value: 0})
 			expect(await winible.ownerOf(0)).to.equal(deployer.address);
 			expect(await winible.levels(0)).to.equal(BigNumber.from(1));
 			expect(await usdc.balanceOf(await winible.dionysos())).to.equal(await winible.levelPrices(1));
 
+		});
+
+		it("Should have a card level 2 and 60 cap", async function () {
+			const { winible, deployer, weth, Cellar } = await loadFixture(deployProtocol);
+
+			const price2 = await winible.getPriceInETH(await winible.levelPrices(2));
+			await winible.build(2, true, {value: price2});
+
+			expect(await winible.levels(0)).to.equal(BigNumber.from(2));
+			expect(await weth.balanceOf(await winible.dionysos())).to.equal(price2);
+
+			const cellar = await Cellar.attach(await winible.cellars(0));
+			expect(await cellar.capacity()).to.equal(await winible.capacityUpdate(2));
+		});
+
+		it("Should have a level max and max cap", async function () {
+			const { winible, deployer, weth, Cellar } = await loadFixture(deployProtocol);
+			const price1 = await winible.getPriceInETH(await winible.levelPrices(await winible.MAX_LEVEL()));
+			await winible.build(await winible.MAX_LEVEL(), true, {value: price1});
+			
+			expect(await winible.levels(0)).to.equal(await winible.MAX_LEVEL());
+			const cellar = await Cellar.attach(await winible.cellars(0));
+			expect(await cellar.capacity()).to.equal(ethers.constants.MaxUint256);
 		});
 
 		// it("Should set the right owner", async function () {

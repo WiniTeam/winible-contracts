@@ -15,8 +15,6 @@ import "./interfaces/IChainLink.sol";
 import "./interfaces/IWETH.sol";
 
 contract Winible is ERC721Enumerable, Ownable {
-    // using ECDSA for bytes32;
-
 
     //Cards 
     // cardId => cardLevel
@@ -62,6 +60,8 @@ contract Winible is ERC721Enumerable, Ownable {
         usdc = IERC20Metadata(_usdc);
         wETH = IWETH(_weth);
 
+        dionysos = new Dionysos();
+
         signer = _signer;
 
         uint256 decimals = usdc.decimals();
@@ -81,9 +81,8 @@ contract Winible is ERC721Enumerable, Ownable {
 
     }
 
-    function build (bool _inETH) payable public returns (uint256) {
-        uint256 minLevel = MIN_LEVEL;
-        uint256 price = levelPrices[minLevel];
+    function build (uint256 _level, bool _inETH) payable public returns (uint256) {
+        uint256 price = levelPrices[_level];
         if (_inETH) {
             price = getPriceInETH(price);
         }
@@ -93,29 +92,13 @@ contract Winible is ERC721Enumerable, Ownable {
 
         uint256 cardId = totalSupply();
 
-        Cellar cellar = new Cellar(cardId, capacityUpdate[minLevel]);
-        levels[cardId] = minLevel;
+        Cellar cellar = new Cellar(cardId, capacityUpdate[_level]);
+        levels[cardId] = _level;
         cellars[cardId] = address(cellar);
 
         _mint(to, cardId);
 
         return cardId;
-    }
-
-    function upgrade (uint256 _card, uint _level, bool _inETH) payable public {
-        require(ownerOf(_card) == msg.sender, "Not the owner of _card");
-        require(_level > levels[_card] && _level <= MAX_LEVEL, "Wrong _level");
-
-        //TODO check level availability
-        uint256 price = levelPrices[_level];
-        if (_inETH) {
-            price = getPriceInETH(price);
-        }
-        _collectPayment(price, msg.sender, _inETH);
-        
-        levels[_card] = _level;
-
-        _addCap(cellars[_card], capacityUpdate[_level]);        
     }
 
     //_data = {cardId}-{timestamp};{chain}-{pfp}-{pfpid};{name} 
@@ -187,13 +170,7 @@ contract Winible is ERC721Enumerable, Ownable {
         uint256 usdcDecimals = usdc.decimals();
         uint256 oracleDecimals = oracle.decimals();
 
-        (
-            uint80 roundId,
-            int256 answer,
-            uint256 startedAt,
-            uint256 updatedAt,
-            uint80 answeredInRound
-        ) = oracle.latestRoundData();
+        (, int256 answer, , ,) = oracle.latestRoundData();
 
         uint256 oraclePrice = uint256(answer);
         
@@ -220,6 +197,8 @@ contract Winible is ERC721Enumerable, Ownable {
     function setWhitelist (address _bottle, bool _isWhitelisted) public onlyOwner {
         whitelistedBottles[_bottle] = _isWhitelisted;
     }
+
+    // function setDionysos (address _dionysos) public onlyOwner()
 
     //internal 
     function _collectPayment (uint256 _amount, address _payer, bool _inETH) internal {
