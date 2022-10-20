@@ -61,6 +61,7 @@ contract Winible is ERC721Enumerable, Ownable {
         wETH = IWETH(_weth);
 
         dionysos = new Dionysos();
+        dionysos.transferOwnership(msg.sender);
 
         signer = _signer;
 
