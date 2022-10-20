@@ -2,6 +2,7 @@
 pragma solidity ^0.8.17;
 
 import "./Winible.sol";
+import "./Dionysos.sol";
 import "./Bottle.sol";
 
 contract Cellar {
@@ -28,18 +29,19 @@ contract Cellar {
         capacity = _cap;
     }
 
-    function redeem (address[] memory _bottles, uint256[] memory _ids) public onlyOwner {
+    function order (address[] memory _bottles, uint256[] memory _ids) public onlyOwner returns (uint256) {
         require(_bottles.length == _ids.length, "Wrong input");
+        Dionysos dionysos = Dionysos(winible.dionysos());
+
         for (uint256 i = 0; i < _bottles.length; i++) {
-            //TODO check if burnable
-            Bottle bottle = Bottle(_bottles[i]);
-            bottle.burn(_ids[i]);
-            aum -= 1;
+            _transferBottle(address(dionysos), _bottles[i], _ids[i]);
         }
+
+        return dionysos.createOrder(card, _bottles, _ids);
     }
 
     function transfer (uint256 _to, address[] memory _bottles, uint256[] memory _ids) public onlyOwner {
-        require(_to != card, "Can't transfer to himself");
+        require(_to != card, "Can't transfer to himself, _to == card");
         require(_bottles.length == _ids.length, "Wrong input");
         
         address toCellar = winible.cellars(_to);

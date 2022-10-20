@@ -53,7 +53,7 @@ contract Winible is ERC721Enumerable, Ownable {
     IERC20Metadata public usdc;
     IWETH public wETH;
 
-    address public signer;
+    address public API;
 
     constructor(address _ethusd, address _usdc, address _weth, address _signer) ERC721 ("Winible Club","Winible"){
         oracle = IChainLink(_ethusd);
@@ -63,7 +63,7 @@ contract Winible is ERC721Enumerable, Ownable {
         dionysos = new Dionysos();
         dionysos.transferOwnership(msg.sender);
 
-        signer = _signer;
+        API = _signer;
 
         uint256 decimals = usdc.decimals();
 
@@ -108,7 +108,7 @@ contract Winible is ERC721Enumerable, Ownable {
         
         //TODO check free or not -> if not free collect payement
         address recovered = ECDSA.recover(ECDSA.toEthSignedMessageHash(_data), _signature);
-        require(recovered == signer, "Not signed by signer");
+        require(recovered == API, "Not signed by signer");
 
         data[_card] = _data;
     }
@@ -185,6 +185,7 @@ contract Winible is ERC721Enumerable, Ownable {
         return (defaultPerks[levels[_card]][_perk] || perks[_card][_perk]);
     }
 
+    //restricted
     function createPerk (uint256 _id, uint256 _price, string memory _name, uint256[] memory _defaults ) public onlyOwner {
         perkNames[_id] = _name;
         perkPrices[_id] = _price;
@@ -193,13 +194,9 @@ contract Winible is ERC721Enumerable, Ownable {
         }
     }
 
-
-    //restricted
     function setWhitelist (address _bottle, bool _isWhitelisted) public onlyOwner {
         whitelistedBottles[_bottle] = _isWhitelisted;
     }
-
-    // function setDionysos (address _dionysos) public onlyOwner()
 
     //internal 
     function _collectPayment (uint256 _amount, address _payer, bool _inETH) internal {

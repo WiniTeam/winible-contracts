@@ -3,38 +3,40 @@ import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { BigNumber } from "ethers";
+import { arrayify, keccak256, solidityKeccak256, solidityPack } from "ethers/lib/utils";
+
+async function deployProtocol() {
+	const [deployer] = await ethers.getSigners();
+
+	const oracleAddress = '0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419';
+	// const usdcAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+	const wethAddress = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2';
+
+	const USDC = await ethers.getContractFactory("ERC20");
+	const usdc = await USDC.deploy("USDC TEST", "USDC");
+	await usdc.deployed();
+
+	const Winible = await ethers.getContractFactory("Winible");
+	const winible = await Winible.deploy(oracleAddress, usdc.address, wethAddress, deployer.address);
+
+	await winible.deployed();
+
+	const Oracle = await ethers.getContractFactory("EACAggregatorProxy");
+	const oracle = Oracle.attach(oracleAddress);
+	
+	const WETH = await ethers.getContractFactory("WETH9");
+	const weth = WETH.attach(wethAddress);
+
+	const Cellar = await ethers.getContractFactory("Cellar");
+
+	const Dionysos = await ethers.getContractFactory("Dionysos");
+	const dionysos = Dionysos.attach(await winible.dionysos());
+
+	return { winible, deployer, oracle, usdc, weth, Cellar, dionysos };
+}
 
 describe("Winible", function () {
 	
-	async function deployProtocol() {
-		const [deployer] = await ethers.getSigners();
-
-		const oracleAddress = '0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419';
-		// const usdcAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
-		const wethAddress = '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2';
-
-		const USDC = await ethers.getContractFactory("ERC20");
-		const usdc = await USDC.deploy("USDC TEST", "USDC");
-		await usdc.deployed();
-
-		const Winible = await ethers.getContractFactory("Winible");
-		const winible = await Winible.deploy(oracleAddress, usdc.address, wethAddress, deployer.address);
-
-		await winible.deployed();
-
-		const Oracle = await ethers.getContractFactory("EACAggregatorProxy");
-		const oracle = Oracle.attach(oracleAddress);
-		
-		const WETH = await ethers.getContractFactory("WETH9");
-		const weth = WETH.attach(wethAddress);
-
-		const Cellar = await ethers.getContractFactory("Cellar");
-
-		return { winible, deployer, oracle, usdc, weth, Cellar };
-	}
-
-
-
 	describe("Cards", function () {
 		it("Should have a card level 1: pay in eth", async function () {
 			const { winible, deployer, weth } = await loadFixture(deployProtocol);
@@ -78,95 +80,51 @@ describe("Winible", function () {
 			expect(await cellar.capacity()).to.equal(ethers.constants.MaxUint256);
 		});
 
-		// it("Should set the right owner", async function () {
-		// 	const { lock, owner } = await loadFixture(deployProtocol);
-
-		// 	expect(await lock.owner()).to.equal(owner.address);
-		// });
-
-		// it("Should receive and store the funds to lock", async function () {
-		// 	const { lock, lockedAmount } = await loadFixture(
-		// 		deployProtocol
-		// 	);
-
-		// 	expect(await ethers.provider.getBalance(lock.address)).to.equal(
-		// 		lockedAmount
-		// 	);
-		// });
-
-		// it("Should fail if the unlockTime is not in the future", async function () {
-		// 	// We don't use the fixture here because we want a different deployment
-		// 	const latestTime = await time.latest();
-		// 	const Lock = await ethers.getContractFactory("Lock");
-		// 	await expect(Lock.deploy(latestTime, { value: 1 })).to.be.revertedWith(
-		// 		"Unlock time should be in the future"
-		// 	);
-		// });
+		
 	});
 
-	// describe("Withdrawals", function () {
-	// 	describe("Validations", function () {
-	// 		it("Should revert with the right error if called too soon", async function () {
-	// 			const { lock } = await loadFixture(deployProtocol);
+	describe("Dionysos", function () {
+		it("Should be withdrawn", async function () {
+			const { winible, deployer, weth, dionysos } = await loadFixture(deployProtocol);
+			const amount = BigNumber.from("123456789");
+			
+			//wrap some eth
+			await weth.deposit({value: amount});
+			await weth.transfer(dionysos.address, amount);
+			expect(await weth.balanceOf(dionysos.address)).to.equal(amount);
+			const adminBefore = await weth.balanceOf(deployer.address);
 
-	// 			await expect(lock.withdraw()).to.be.revertedWith(
-	// 				"You can't withdraw yet"
-	// 			);
-	// 		});
+			await dionysos.withdrawAll([weth.address]);
+			expect(await weth.balanceOf(dionysos.address)).to.equal(BigNumber.from(0));
+			const adminAfter = await weth.balanceOf(deployer.address);
 
-	// 		it("Should revert with the right error if called from another account", async function () {
-	// 			const { lock, unlockTime, otherAccount } = await loadFixture(
-	// 				deployProtocol
-	// 			);
+			expect(adminBefore).to.lt(adminAfter);
+			expect(amount).to.equal(adminAfter.sub(adminBefore));			
+		});
 
-	// 			// We can increase the time in Hardhat Network
-	// 			await time.increaseTo(unlockTime);
+		it("Should not revert: good amount", async function () {
+			const { winible, deployer, weth, dionysos } = await loadFixture(deployProtocol);
+			
+			const data = solidityKeccak256(["string"], ["bleb-abcdefghij"]);
+			const amount = 12345;
+			const toSign = await dionysos.getMessageHash(0, amount, data)
+			const sig = await deployer.signMessage(arrayify(toSign));
 
-	// 			// We use lock.connect() to send a transaction from another account
-	// 			await expect(lock.connect(otherAccount).withdraw()).to.be.revertedWith(
-	// 				"You aren't the owner"
-	// 			);
-	// 		});
+			await expect(dionysos.completeOrder(0, amount, data, sig)).to.not.be.reverted;
+		});
 
-	// 		it("Shouldn't fail if the unlockTime has arrived and the owner calls it", async function () {
-	// 			const { lock, unlockTime } = await loadFixture(
-	// 				deployProtocol
-	// 			);
+		it("Should revert: wrong amount", async function () {
+			const { winible, deployer, weth, dionysos } = await loadFixture(deployProtocol);
+			
+			const data = solidityKeccak256(["string"], ["bleb-abcdefghij"]);
+			const amount = 12345;
+			const toSign = await dionysos.getMessageHash(0, amount, data)
+			const sig = await deployer.signMessage(arrayify(toSign));
 
-	// 			// Transactions are sent using the first signer by default
-	// 			await time.increaseTo(unlockTime);
+			await expect(dionysos.completeOrder(0, amount - 1, data, sig)).to.be.reverted;
 
-	// 			await expect(lock.withdraw()).not.to.be.reverted;
-	// 		});
-	// 	});
+			
+		});
+	});
 
-	// 	describe("Events", function () {
-	// 		it("Should emit an event on withdrawals", async function () {
-	// 			const { lock, unlockTime, lockedAmount } = await loadFixture(
-	// 				deployProtocol
-	// 			);
-
-	// 			await time.increaseTo(unlockTime);
-
-	// 			await expect(lock.withdraw())
-	// 				.to.emit(lock, "Withdrawal")
-	// 				.withArgs(lockedAmount, anyValue); // We accept any value as `when` arg
-	// 		});
-	// 	});
-
-	// 	describe("Transfers", function () {
-	// 		it("Should transfer the funds to the owner", async function () {
-	// 			const { lock, unlockTime, lockedAmount, owner } = await loadFixture(
-	// 				deployProtocol
-	// 			);
-
-	// 			await time.increaseTo(unlockTime);
-
-	// 			await expect(lock.withdraw()).to.changeEtherBalances(
-	// 				[owner, lock],
-	// 				[lockedAmount, -lockedAmount]
-	// 			);
-	// 		});
-	// 	});
-	// });
 });
