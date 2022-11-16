@@ -16,8 +16,8 @@ const config: HardhatUserConfig = {
 		}
 	},
 	networks: {
-		ropsten: {
-			url: `https://ropsten.infura.io/v3/${process.env.INFURA_KEY}`,
+		goerli: {
+			url: `https://goerli.infura.io/v3/${process.env.INFURA_KEY}`,
 			accounts: [`${process.env.PRIVATE_KEY}`]
 		},
 		mainnet: {
@@ -39,8 +39,11 @@ const config: HardhatUserConfig = {
 	},
 	gasReporter: {
 		currency: 'USD',
+		token: 'ETH',
 		gasPrice: 15,
-		enabled: false,
+		enabled: true,
+		coinmarketcap: process.env.COINMARKETCAP,
+		excludeContracts: ['mock/']
 	}
 };
 

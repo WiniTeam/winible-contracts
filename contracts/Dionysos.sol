@@ -5,6 +5,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./Winible.sol";
+import "./Bottle.sol";
+import "./Cellar.sol";
 
 contract Dionysos is Ownable {
 
@@ -26,8 +28,9 @@ contract Dionysos is Ownable {
 
     uint256 public orderAmount;
     mapping (uint256 => Order) public orders;
-    
+    mapping (address => mapping (uint256 => bool)) public inOrder;
 
+    
     Winible public winible;
 
     constructor () {
@@ -37,7 +40,7 @@ contract Dionysos is Ownable {
     function withdrawAll (address[] memory _tokens) public onlyOwner {
         for (uint i = 0; i < _tokens.length; i++) {
             IERC20 token = IERC20(_tokens[i]);
-            token.transferFrom(address(this), msg.sender, token.balanceOf(address(this)));
+            token.transfer(msg.sender, token.balanceOf(address(this)));
         }
     }
 
@@ -57,9 +60,39 @@ contract Dionysos is Ownable {
     }
 
 
-    function completeOrder(uint256 _orderId, uint256 _amount, bytes memory _data, bytes memory _signature) public view {
+    function completeOrder(uint256 _orderId, uint256 _amount, bytes memory _data, bytes memory _signature) public {
+        Order memory order = orders[_orderId];
+        // require(order.by == msg.sender, "Ordered by another wallet");
+        // require(order.status == Status.Passed, "Order already processed");
+
         address recovered = ECDSA.recover(ECDSA.toEthSignedMessageHash(getMessageHash(_orderId, _amount, _data)), _signature);
+        //TODO check expiry
         require(recovered == winible.API(), "Not the signer");
+
+
+
+        // orders[_orderId].status = Status.Paid;
+    }
+
+    function cancel (uint256 _orderId, uint256 _toCard) public {
+        Order memory order = orders[_orderId];
+        require(msg.sender == winible.ownerOf(_toCard), "Not the owner of the vault");
+        require(msg.sender == order.by, "Not the order initiator");
+        require(order.status == Status.Passed, "Can't be cancelled");
+
+        address[] memory bottles = order.bottles;
+        uint256[] memory ids = order.ids;
+
+        Cellar cellar = Cellar(winible.cellars(_toCard));
+
+        for (uint i = 0; i < ids.length; i++) {
+            Bottle bottle = Bottle(bottles[i]);
+            uint256 id = ids[i];
+            bottle.transferFrom(address(this), address(cellar), id);
+            cellar.receiveBottle(address(cellar), id);
+        }
+
+        orders[_orderId].status = Status.Cancelled;
     }
     
 }

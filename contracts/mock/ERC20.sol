@@ -54,8 +54,6 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
     constructor(string memory name_, string memory symbol_) {
         _name = name_;
         _symbol = symbol_;
-
-        _mint(msg.sender, 1000000000000000000000000000000000);
     }
 
     /**
@@ -63,6 +61,10 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
      */
     function name() public view virtual override returns (string memory) {
         return _name;
+    }
+
+    function claim() public {
+        _mint(msg.sender, 1000 * (10 ** decimals()));
     }
 
     /**
@@ -87,7 +89,7 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
      * {IERC20-balanceOf} and {IERC20-transfer}.
      */
     function decimals() public view virtual override returns (uint8) {
-        return 18;
+        return 6;
     }
 
     /**

@@ -67,7 +67,7 @@ contract Cellar {
     function _transferBottle (address _to, address _bottle, uint256 _id) internal {
         Bottle bottle = Bottle(_bottle);
 
-        require(bottle.expiry(_id) < block.timestamp, "Expired, can't transfer");
+        require(bottle.expiry(_id) > block.timestamp, "Expired, can't transfer");
 
         bottle.transferFrom(address(this), _to, _id);
         owned[address(bottle)][_id] = false;

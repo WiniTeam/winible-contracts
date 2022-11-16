@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 import "./Cellar.sol";
 import "./Dionysos.sol";
 import "./Bottle.sol";
@@ -15,6 +16,8 @@ import "./interfaces/IChainLink.sol";
 import "./interfaces/IWETH.sol";
 
 contract Winible is ERC721Enumerable, Ownable {
+    using Strings for uint256;
+    string public baseURI;
 
     //Cards 
     // cardId => cardLevel
@@ -55,6 +58,12 @@ contract Winible is ERC721Enumerable, Ownable {
 
     address public API;
 
+    //events
+    event LevelAdded (uint indexed _level, string _name, uint256 _price, uint256 _capacity);
+    event PerkAdded (uint indexed _perkId, string _name, uint256 _price);
+    event DefaultPerkAdded (uint indexed _perkId, uint indexed _level);
+    event CellarBuilt (uint256 indexed _id, address indexed _address, uint _level, uint256 _capacity, uint256 _price, bool _inETH);
+
     constructor(address _ethusd, address _usdc, address _weth, address _signer) ERC721 ("Winible Club","Winible"){
         oracle = IChainLink(_ethusd);
         usdc = IERC20Metadata(_usdc);
@@ -71,19 +80,24 @@ contract Winible is ERC721Enumerable, Ownable {
         levelPrices[1] = 20 * (10 ** decimals);
         levelNames[1] = "Flex";
         capacityUpdate[1] = 6;
+        emit LevelAdded (1, levelNames[1], levelPrices[1], capacityUpdate[1]);
 
         levelPrices[2] = 200 * (10 ** decimals);
         levelNames[2] = "Premium";
         capacityUpdate[2] = 60;
+        emit LevelAdded (2, levelNames[2], levelPrices[2], capacityUpdate[2]);
 
         levelPrices[3] = 1000 * (10 ** decimals);
         levelNames[3] = "Elite";
         capacityUpdate[3] = type(uint256).max;
+        emit LevelAdded (3, levelNames[3], levelPrices[3], capacityUpdate[3]);
 
+        baseURI = "";
     }
 
     function build (uint256 _level, bool _inETH) payable public returns (uint256) {
         uint256 price = levelPrices[_level];
+        require (price > 0, "Not a valid level");
         if (_inETH) {
             price = getPriceInETH(price);
         }
@@ -93,11 +107,14 @@ contract Winible is ERC721Enumerable, Ownable {
 
         uint256 cardId = totalSupply();
 
-        Cellar cellar = new Cellar(cardId, capacityUpdate[_level]);
+        uint256 capacity = capacityUpdate[_level];
+        Cellar cellar = new Cellar(cardId, capacity);
         levels[cardId] = _level;
         cellars[cardId] = address(cellar);
 
         _mint(to, cardId);
+
+        emit CellarBuilt (cardId, address(cellar), _level , capacity, price, _inETH);
 
         return cardId;
     }
@@ -185,17 +202,33 @@ contract Winible is ERC721Enumerable, Ownable {
         return (defaultPerks[levels[_card]][_perk] || perks[_card][_perk]);
     }
 
+    /**
+     * @dev See {IERC721Metadata-tokenURI}.
+     */
+    function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
+        _requireMinted(tokenId);
+
+        return bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, tokenId.toString())) : "";
+    }
+
     //restricted
     function createPerk (uint256 _id, uint256 _price, string memory _name, uint256[] memory _defaults ) public onlyOwner {
         perkNames[_id] = _name;
         perkPrices[_id] = _price;
         for (uint i = 0; i < _defaults.length; i++) {
             defaultPerks[_defaults[i]][_id] = true;
+            emit DefaultPerkAdded (_id, _defaults[i]);
         }
+
+        emit PerkAdded (_id, _name, _price);
     }
 
     function setWhitelist (address _bottle, bool _isWhitelisted) public onlyOwner {
         whitelistedBottles[_bottle] = _isWhitelisted;
+    }
+
+    function setBaseURI (string memory _baseURI) public onlyOwner {
+        baseURI = _baseURI;
     }
 
     //internal 
