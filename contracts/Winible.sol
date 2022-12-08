@@ -63,6 +63,8 @@ contract Winible is ERC721Enumerable, Ownable {
     event PerkAdded (uint indexed _perkId, string _name, uint256 _price);
     event DefaultPerkAdded (uint indexed _perkId, uint indexed _level);
     event CellarBuilt (uint256 indexed _id, address indexed _address, uint _level, uint256 _capacity, uint256 _price, bool _inETH);
+    event ExpiryIncreased (address indexed _colllection, uint256 indexed _bottleId, uint256 _duration);
+    event CapacityIncreased (address indexed _cellar, uint256 _newCapacity);
 
     constructor(address _ethusd, address _usdc, address _weth, address _signer) ERC721 ("Winible Club","Winible"){
         oracle = IChainLink(_ethusd);
@@ -130,11 +132,19 @@ contract Winible is ERC721Enumerable, Ownable {
         data[_card] = _data;
     }
 
-    function increase (uint256 _card, uint256 _cap) payable public {
-        //TODO check price and collect
+    function increase (uint256 _card, uint256 _cap, bool _inETH) payable public {
+        uint256 decimals = usdc.decimals();
+        uint256 price = _cap * (10 ** decimals);
+        if (type(uint256).max == _cap) {
+            price = 1000 * (10 ** decimals);
+        }
+
+        if (_inETH) {
+            price = getPriceInETH(price);
+        }
+        _collectPayment(price, msg.sender, _inETH);
 
         _addCap(cellars[_card], _cap);
-
     }
 
     function buyPerk (uint256 _card, uint256 _perk, bool _inETH) payable public {
@@ -177,7 +187,10 @@ contract Winible is ERC721Enumerable, Ownable {
         _collectPayment(price, msg.sender, _inETH);
 
         for (uint256 i = 0; i < _bottles.length; i++) {
-            Bottle(_bottles[i]).increaseExpiry(_ids[i], _duration);
+            address collection = _bottles[i];
+            uint256 bottleId = _ids[i];
+            Bottle(collection).increaseExpiry(bottleId, _duration);
+            emit ExpiryIncreased (collection, bottleId, _duration);
         }
 
     }
@@ -250,12 +263,16 @@ contract Winible is ERC721Enumerable, Ownable {
     function _addCap (address _cellar, uint256 _add) internal {
         Cellar cellar = Cellar(_cellar);
         uint256 capacity = cellar.capacity();
+        require(_add > 0, "Can't add 0 capacity");
 
         if (_add == type(uint256).max) {
             cellar.changeCapacity(_add);
+            emit CapacityIncreased (_cellar, _add);
         }
         else {
-            cellar.changeCapacity(capacity + _add);
+            uint256 newCap = capacity + _add;
+            cellar.changeCapacity(newCap);
+            emit CapacityIncreased (_cellar, newCap);
         } 
     }
 

@@ -14,6 +14,8 @@ abstract contract Bottle is ERC721Burnable {
     mapping(uint256 => uint256) public expiry;
     Winible public winible;
     string public baseURI;
+    uint256 public minPrice;
+    uint256 public maxPrice;
 
     event BuyBottle (uint256 indexed _id, address _toCellar);
 
@@ -27,7 +29,7 @@ abstract contract Bottle is ERC721Burnable {
         _;
     }
 
-    function buy (uint256 _card) payable virtual public;
+    function buy (uint256 _card, uint256 _amount) payable virtual public;
     
     function getPrice (uint256 _forCard) public virtual view returns (uint256);
 
