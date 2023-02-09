@@ -14,6 +14,7 @@ abstract contract Bottle is ERC721Burnable {
     mapping(uint256 => uint256) public expiry;
     Winible public winible;
     string public baseURI;
+    string public fixedMetadata;
     uint256 public minPrice;
     uint256 public maxPrice;
 
@@ -43,7 +44,6 @@ abstract contract Bottle is ERC721Burnable {
      */
     function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
         _requireMinted(tokenId);
-
         return bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, tokenId.toString())) : "";
     }
 

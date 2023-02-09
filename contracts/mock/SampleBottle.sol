@@ -16,6 +16,7 @@ contract SampleBottle is Bottle {
         baseURI = "https://winible-club-api-alpha.vercel.app/bottles/metadata/";
         minPrice = 15000000;
         maxPrice = 19000000;
+        fixedMetadata = "ipfs://abcdefghm";
     }
 
     function buy (uint256 _card, uint256 _amount) payable override public {
